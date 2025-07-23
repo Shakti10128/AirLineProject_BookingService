@@ -19,8 +19,8 @@ const prepareAndStartServer = ()=>{
         }
         // if(process.env.DB_SYNC){
         //     db.sequelize.sync({alter:true});
-        // }
-        console.log(`Auth server started at port: ${PORT}`);
+        // }  
+        console.log(`Booking server started at port: ${PORT}`);
     })
 }
 

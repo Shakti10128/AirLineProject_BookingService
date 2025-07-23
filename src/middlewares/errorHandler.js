@@ -2,6 +2,7 @@
 const { StatusCodes } = require('http-status-codes');
 const AppError = require('../utils/appError');
 const errorResponse = require("../utils/errorResponse")
+const axios = require('axios')
 
 const errorHandler = (err, req, res, next) => {
     let customError = err;
@@ -32,6 +33,20 @@ const errorHandler = (err, req, res, next) => {
         );
     }
 
+
+    // if the Error is of AxiosError
+    if (axios.isAxiosError(customError)) {
+        console.log("caught the axios error")
+        customError = new AppError(
+            err?.response?.data?.message,
+            err.response?.status || StatusCodes.INTERNAL_SERVER_ERROR,
+            {
+                url: err.config?.url,
+                method: err.config?.method,
+                status: err.response?.status,
+            }
+        );
+    }
 
     // Fallback if it's not already AppError
     if (!(customError instanceof AppError)) {
