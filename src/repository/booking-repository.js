@@ -17,8 +17,13 @@ class BookingRepository{
         return true;
     }
 
-    async get(bookingId) {
-        return await Booking.findByPk(bookingId);
+    async get(bookingId,options = {}) {
+        return await Booking.findOne({
+            where:{
+                id: bookingId
+            },
+            transaction: options?.transaction
+        })
     }
 
     async getAll(userId,status){

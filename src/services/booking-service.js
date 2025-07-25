@@ -2,33 +2,12 @@ const {BookingRepository} = require("../repository/index");
 const axios = require("axios");
 const AppError = require("../utils/appError");
 const { StatusCodes } = require("http-status-codes");
-const {flightRequestUrl} = require('../utils/servicesUrls');
 const { sequelize} = require('../models');
+const {flightService} = require("../proxies/index");
 
 class BookingService{
     constructor(){
         this.bookingRepository = new BookingRepository();
-    }
-
-    async #getFlight(flightId){
-        try {
-            // if flight exist with givenId, it won't throw any error, else it will throw an error
-            // if flight not exist in DB, and catch block will catch the error
-            let getFlightRequestUrl = flightRequestUrl.getFlightRequestUrl(flightId);
-            const flight = await axios.get(getFlightRequestUrl);
-            return flight;
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    async #updateFlight(flightId,flightPayload){
-        try {
-            const updateFlightRequestUrl = flightRequestUrl.updateFlightRequestUrl(flightId);
-            await axios.patch(updateFlightRequestUrl,{flightPayload});
-        } catch (error) {
-            throw error;
-        }
     }
 
     async createBooking(data){
@@ -38,14 +17,15 @@ class BookingService{
             // STEP:1
             // now get the flight details
             let flightId = data.flightId;
-            const flight = await this.#getFlight(flightId);
+            const flight = await flightService.getFlightDetails(flightId);
 
             // STEP:2
             // axios has data as key in response, also flight sends the data as key in response
             const flightData = flight?.data?.data;
+            let originalSeatCount = flightData.totalSeats;
             const priceOfTheFlight = flightData.price;
             // if the noOfSeats not available in the flight 
-            if(data.noOfSeats > flightData.totalSeats) {
+            if(data.noOfSeats > originalSeatCount) {
                 throw new AppError("Can not process the request",StatusCodes.INTERNAL_SERVER_ERROR,`Seats ${data.noOfSeats} not available`);
             }
 
@@ -62,9 +42,9 @@ class BookingService{
             // STEP:4
             // flight payload for updating the flight
             const flightPayload = {
-                totalSeats:flightData.totalSeats - booking.noOfSeats
+                totalSeats:originalSeatCount - booking.noOfSeats
             }
-            await this.#updateFlight(flightId,flightPayload);
+            await flightService.updateSeats(flightId,flightPayload);
             flightUpdated = true;
 
             // Step 5: Commit transaction
@@ -77,9 +57,7 @@ class BookingService{
             // Step 7: Manual (rollback seats in flight service)
             if (flightUpdated) {
                 try {
-                    const flight = await this.#getFlight(data.flightId);
-                    const rolledBackSeats = flight.data.data.totalSeats + data.noOfSeats;
-                    await this.#updateFlight(data.flightId, { totalSeats: rolledBackSeats });
+                    await flightService.rollbackSeats(data.flightId,data.noOfSeats,true);
                     console.log("Rolled back seats in flight service");
                 } catch (rollbackErr) {
                     console.error("Failed to rollback flight seat count:", rollbackErr);
@@ -89,9 +67,9 @@ class BookingService{
         }
     }
 
-    async getBookingById(bookingId){
+    async getBookingById(bookingId,options = {}){
         try {
-            let booking = await this.bookingRepository.get(bookingId);
+            let booking = await this.bookingRepository.get(bookingId,options);
             // if booking Id is wrong
             if(!booking) {
                 throw new AppError(`No booking found with id: ${bookingId}`,StatusCodes.BAD_REQUEST,"BookingId is wrong");
@@ -137,13 +115,9 @@ class BookingService{
 
             // STEP: 3
             // fetch the flight and update the available seats
-            const flight = await this.#getFlight(booking.flightId);
-            const availableSeats = flight.data.data.totalSeats + booking.noOfSeats; 
-            const flightPayload = {
-                totalSeats: availableSeats
-            };
+            const flight = await flightService.getFlightDetails(booking.flightId);
             // calling the flight service to update the seats in flight
-            await this.#updateFlight(booking.flightId,flightPayload);
+            await flightService.updateSeats(booking.flightId,{totalSeats:flight.data.data.totalSeats + booking.noOfSeats});
             flightUpdated = true;
 
             await t.commit();
@@ -155,10 +129,7 @@ class BookingService{
             // Step 5: Manual (rollback seats in flight service)
             if (flightUpdated) { // if flight updated
                 try {
-                    console.log(`Rolling back seats: flightId=${flightId}, bookedSeats=${bookedSeats}`);
-                    const flight = await this.#getFlight(flightId)
-                    const rolledBackSeats = flight.data.data.totalSeats - bookedSeats;
-                    await this.#updateFlight(flightId, { totalSeats: rolledBackSeats });
+                    await flightService.rollbackSeats(flightId,bookedSeats,false);
                     console.log("Rolled back seats in flight service");
                 } catch (rollbackErr) {
                     console.error("Failed to rollback flight seat count:", rollbackErr);
