@@ -9,4 +9,7 @@ router.post("/bookings",
     AuthenticateUser,
     BookingController.create);
 
+router.get('/bookings/:id',AuthenticateUser,BookingController.getBookingById);
+router.patch('/bookings/cancelbooking/:id',AuthenticateUser,BookingController.cancelBooking);
+
 module.exports = router;

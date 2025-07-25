@@ -13,7 +13,30 @@ const create = async(req,res,next)=>{
     }
 }
 
+const getBookingById = async(req,res,next)=>{
+    try {
+        const id = req.params.id;
+        const response = await bookingService.getBookingById(id);
+        return successResponse(res,StatusCodes.OK,response,"Booking fetched successfully");
+    } catch (error) {
+        next(error);
+    }
+}
+
+const cancelBooking = async(req,res,next)=>{
+    try {
+        const id = req.params.id;
+        const response = await bookingService.cancelBooking(id);
+        console.log(response);
+        return successResponse(res,StatusCodes.OK,response,"Booking cancelled successfully");
+    } catch (error) {
+        next(error);
+    }
+}
+
 
 module.exports = {
-    create
+    create,
+    getBookingById,
+    cancelBooking
 }
