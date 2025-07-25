@@ -34,9 +34,26 @@ const cancelBooking = async(req,res,next)=>{
     }
 }
 
+const getAllBookings = async(req,res,next)=>{
+    try {
+        const userId = req.userId;
+        const status = req.query.status || 'active';
+        const response = await bookingService.getAllBookings(userId,status);
+        return successResponse(
+            res,
+            StatusCodes.OK,
+            response,
+            response.length > 0 ? "booking fetched" : "No Booking found",
+        );
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 module.exports = {
     create,
     getBookingById,
-    cancelBooking
+    cancelBooking,
+    getAllBookings
 }

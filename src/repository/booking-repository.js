@@ -1,4 +1,4 @@
-const { where } = require("sequelize");
+const { where,Op } = require("sequelize");
 const {Booking} = require("../models/index");
 
 
@@ -19,6 +19,18 @@ class BookingRepository{
 
     async get(bookingId) {
         return await Booking.findByPk(bookingId);
+    }
+
+    async getAll(userId,status){
+        let whereClause = {userId};
+        if (status === 'active') {
+            whereClause.status = { [Op.ne]: 'Cancelled' };
+        } 
+        else if (status === 'cancelled') {
+            whereClause.status = 'Cancelled';
+        }
+        const bookings = await Booking.findAll({ where: whereClause });
+        return bookings;
     }
 }
 

@@ -103,6 +103,14 @@ class BookingService{
         }
     }
 
+    async getAllBookings(userId,status) {
+        try {
+            return await this.bookingRepository.getAll(userId,status);
+        } catch (error) {
+            throw error;
+        }
+    }
+
     async cancelBooking(bookingId){
         const t = await sequelize.transaction();
         let flightUpdated = false;
