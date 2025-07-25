@@ -1,9 +1,9 @@
 
 // middlewares/auth.js
 const axios = require("axios");
-const {userServiceUrls} = require("../utils/servicesUrls");
 const { AppError} = require("../utils/index");
 const { StatusCodes } = require("http-status-codes");
+const {userService} = require("../proxies/index");
 
 const authenticate = async (req, res, next) => {
   const token = req.headers["x-access-token"];
@@ -12,13 +12,12 @@ const authenticate = async (req, res, next) => {
   }
 
   try {
-    const userAuthenitcateReqUrl = userServiceUrls.getUserAuthenitcateReqUrl();
-    const response = await axios.get(userAuthenitcateReqUrl, {
-      headers: {
-        "x-access-token": token,
-      },
-    });
-    req.userId = response.data.data; // auth service returns userId in data
+    const response = await userService.isUserAuthenticated(token);
+    req.userId = response.data.data; // axios returns userId in data:{data:userId,message:""}
+    if (!userId) {
+      throw new AppError("Invalid token", StatusCodes.UNAUTHORIZED);
+    }
+    req.userId = userId;
     next();
   } catch (error) {
     return next(error);
